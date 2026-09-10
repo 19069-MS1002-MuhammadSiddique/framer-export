@@ -18,7 +18,7 @@ export function showHelp(): void {
     `    ${ui.primary('fexport')}         ${ui.warning('<url>')} ${ui.muted('[output-dir]')}`
   );
   console.log(
-    `    ${ui.primary('framer-export')} ${ui.success('ui')}   ${ui.muted('[--port <n>] [--no-open]')}`
+    `    ${ui.primary('framer-export')} ${ui.success('ui')}   ${ui.muted('[--port <n>] [--host <addr>] [--no-open]')}`
   );
 
   console.log('');
@@ -26,6 +26,7 @@ export function showHelp(): void {
 
   const opts: Array<[string, string]> = [
     ['ui', 'Launch the web interface (gallery, options, live logs)'],
+    ['--host <addr>', 'With ui: bind address (default: 127.0.0.1; use 0.0.0.0 in Docker)'],
     ['--setup', 'Launch the interactive setup assistant'],
     ['--platform <p>', 'Force platform by id (e.g. framer, shopify, notion)'],
     ['--subpages', 'Crawl and export sub-pages'],

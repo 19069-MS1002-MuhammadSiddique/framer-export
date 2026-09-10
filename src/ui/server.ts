@@ -140,7 +140,7 @@ export interface UiServerHandle {
   close: () => Promise<void>;
 }
 
-export function startUiServer(port: number): Promise<UiServerHandle> {
+export function startUiServer(port: number, host: string = '127.0.0.1'): Promise<UiServerHandle> {
   const unsubscribeLog = onLog((record) => sse('log', record));
   const unsubscribeProgress = onProgress((progress) => sse('progress', progress));
 
@@ -241,7 +241,7 @@ export function startUiServer(port: number): Promise<UiServerHandle> {
 
   return new Promise((resolve, reject) => {
     server.on('error', reject);
-    server.listen(port, '127.0.0.1', () => {
+    server.listen(port, host, () => {
       const address = server.address();
       const actualPort = typeof address === 'object' && address ? address.port : port;
       console.log('');

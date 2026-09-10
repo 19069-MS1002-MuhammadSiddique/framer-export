@@ -122,9 +122,11 @@ async function main(): Promise<void> {
       );
       process.exit(1);
     }
+    const hostValue = extractFlag(args, '--host');
+    const host = hostValue === null ? '127.0.0.1' : hostValue;
     showBanner();
     const { startUiServer } = await import('../ui/server.js');
-    const handle = await startUiServer(port);
+    const handle = await startUiServer(port, host);
     if (!hasFlag(args, '--no-open')) {
       const target = `http://localhost:${handle.port}`;
       const opener =
