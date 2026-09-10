@@ -42,15 +42,16 @@ function isAllowedHost(req: http.IncomingMessage): boolean {
   return /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
 }
 
+// True same-origin check: the request's Origin (sent by the browser, not
+// spoofable by page JS) must match the Host header the request came in on.
+// This works regardless of which hostname/IP the server is reached at.
 function isSameOrigin(req: http.IncomingMessage): boolean {
   const origin = req.headers.origin;
   if (!origin) return true;
+  const host = (req.headers.host || '').toLowerCase();
   try {
     const parsed = new URL(origin);
-    return (
-      (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') &&
-      parsed.port === (req.headers.host || '').split(':')[1]
-    );
+    return parsed.host.toLowerCase() === host;
   } catch {
     return false;
   }
@@ -144,11 +145,21 @@ export function startUiServer(port: number, host: string = '127.0.0.1'): Promise
   const unsubscribeLog = onLog((record) => sse('log', record));
   const unsubscribeProgress = onProgress((progress) => sse('progress', progress));
 
+  // The Host-header allowlist only makes sense when the socket itself is
+  // loopback-only: it's what stops a malicious page (via DNS rebinding)
+  // from reaching a server that's otherwise unreachable from the network.
+  // Once the caller explicitly binds elsewhere (e.g. --host 0.0.0.0 to
+  // publish this through Docker/a cloud box), the server is reachable from
+  // the network by design, under whatever hostname/IP the caller reaches
+  // it at, so that allowlist can no longer be a fixed localhost pattern.
+  // isSameOrigin still applies in both modes as CSRF defense-in-depth.
+  const restrictToLoopback = host === '127.0.0.1' || host === 'localhost' || host === '::1';
+
   const server = http.createServer(async (req, res) => {
     const parsed = new URL(req.url || '/', 'http://localhost');
     const route = parsed.pathname;
 
-    if (!isAllowedHost(req) || !isSameOrigin(req)) {
+    if ((restrictToLoopback && !isAllowedHost(req)) || !isSameOrigin(req)) {
       json(res, 403, { error: 'forbidden' });
       return;
     }
@@ -247,6 +258,12 @@ export function startUiServer(port: number, host: string = '127.0.0.1'): Promise
       console.log('');
       console.log(`  ${ui.text.bold('Framer Export UI')}`);
       console.log(`  ${ui.muted('Local')}   ${ui.primary(`http://localhost:${actualPort}`)}`);
+      if (!restrictToLoopback) {
+        console.log(`  ${ui.muted('Bound')}   ${ui.primary(`${host}:${actualPort}`)} ${ui.muted('(reachable from the network)')}`);
+        console.log(
+          `  ${ui.warning('⚠')}  ${ui.warning('No login/auth — anyone who can reach this address can trigger exports. Only expose it on a trusted or firewalled network.')}`
+        );
+      }
       console.log(`  ${ui.muted('Stop')}    ${ui.primary('ctrl+c')}`);
       console.log('');
       resolve({
